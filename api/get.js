@@ -153,8 +153,9 @@ export default async function handler(req, res) {
       LOOKUP: data0,
       EPON: data1,
       NETB: data2,
+      KADAS: data3,
       OBJECT: data5,
-    };
+      MERGED: mergedData,    };
 
     // Set headers for multi-content response
     res.setHeader("Content-Type", "multipart/mixed; boundary=boundary123");
