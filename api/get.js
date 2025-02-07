@@ -65,6 +65,89 @@ export default async function handler(req, res) {
       fetchXMLWithRetry(apiUrlXML), // Fetch XML data
     ]);
 
+ // Extract coordinates from target2 (assumed to be in format "x,y")
+    const [x, y] = target2.split(',').map(coord => parseFloat(coord));
+
+    const apiUrl3 = `https://service.pdok.nl/kadaster/kadastralekaart/wms/v5_0?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetFeatureInfo&QUERY_LAYERS=Perceelvlak&layers=Perceelvlak&INFO_FORMAT=application/json&FEATURE_COUNT=1&I=2&J=2&CRS=EPSG:28992&STYLES=&WIDTH=5&HEIGHT=5&BBOX=${target3}`;
+    const response3 = await fetchWithErrorHandling(apiUrl3, { headers: { 'Content-Type': 'application/json' } });
+
+    const apiUrl4 = `https://service.pdok.nl/lv/bag/wfs/v2_0?service=WFS&version=2.0.0&request=GetFeature&propertyname=&count=200&outputFormat=json&srsName=EPSG:4326&typeName=bag:verblijfsobject&Filter=<Filter><DWithin><PropertyName>Geometry</PropertyName><gml:Point><gml:coordinates>${x},${y}</gml:coordinates></gml:Point><Distance units='m'>70</Distance></DWithin></Filter>`;
+    const response4 = await fetchWithErrorHandling(apiUrl4, { headers: { 'Content-Type': 'application/json' } });
+
+    // New API URL added in parallel
+    const apiUrl6 = `https://service.pdok.nl/lv/bag/wfs/v2_0?service=WFS&version=2.0.0&request=GetFeature&count=200&outputFormat=application/json&srsName=EPSG:4326&typeName=bag:pand&Filter=%3CFilter%3E%20%3CDWithin%3E%3CPropertyName%3EGeometry%3C/PropertyName%3E%3Cgml:Point%3E%20%3Cgml:coordinates%3E${x},${y}%3C/gml:coordinates%3E%20%3C/gml:Point%3E%3CDistance%20units=%27m%27%3E70%3C/Distance%3E%3C/DWithin%3E%3C/Filter%3E`;
+    const response6 = await fetchWithErrorHandling(apiUrl6, { headers: { 'Content-Type': 'application/json' } });
+
+    if (!response3 || !response4 || !response6) {
+      return res.status(500).json({ error: "Error fetching data from the bbox or WFS API" });
+    }
+
+    const data3 = response3;
+    const data4 = response4;
+    const data6 = response6;
+
+    const data4Features = data4.features || [];
+
+    const additionalData = await Promise.all(data4Features.map(async (feature) => {
+      const identificatie = feature.properties?.identificatie;
+      if (!identificatie) return null;
+
+      const apiUrl = `https://yxorp-pi.vercel.app/api/handler?url=https://public.ep-online.nl/api/v4/PandEnergielabel/AdresseerbaarObject/${identificatie}`;
+
+      try {
+        const response = await fetch(apiUrl, {
+          headers: {
+            "Authorization": process.env.AUTH_TOKEN,
+            'Content-Type': 'application/json',
+          }
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          return { identificatie, data };
+        } else {
+          return { identificatie, error: response.statusText };
+        }
+      } catch (error) {
+        return { identificatie, error: error.message };
+      }
+    }));
+
+    const additionalDataFiltered = additionalData.filter(item => item !== null);
+
+    const additionalDataMap = new Map();
+    additionalDataFiltered.forEach(item => {
+      additionalDataMap.set(item.identificatie, item);
+    });
+
+   const mergedData = data4Features
+  .map(feature => {
+    const identificatie = feature.properties?.identificatie;
+    const additionalInfo = additionalDataMap.get(identificatie);
+    const pandData = data6.features.find(pand => pand.properties?.identificatie === feature.properties?.pandidentificatie);
+
+    // Only include the feature if there is no error in the additional data and matching PAND
+    if (!additionalInfo || additionalInfo.error || !pandData) {
+      return null; // Skip this feature if there's an error or no additional data or matching PAND
+    }
+
+    return {
+      ...feature,
+      additionalData: additionalInfo.data, // Only include the successful data
+      additionalData2: [
+        {
+          geometry: pandData.geometry, // Add PAND geometry to additionalData2
+        }
+      ],
+    };
+  })
+  .filter(item => item !== null); // Remove any null (error or missing) entries
+
+
+
+
+
+    
     // Construct the JSON response
     const combinedData = {
       LOOKUP: data0,
