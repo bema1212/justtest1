@@ -159,11 +159,21 @@ export default async function handler(req, res) {
       MERGED: mergedData
     };
 
-     // Set headers for multi-content response
+    // Set headers for multi-content response
     res.setHeader("Content-Type", "multipart/mixed; boundary=boundary123");
 
     res.status(200).send(
-      `--boundary123\nContent-Type: application/json\n\n${JSON.stringify(combinedData)}\n\n--boundary123\nContent-Type: text/xml\n\n${xmlData}\n\n--boundary123--`
+      `--boundary123
+Content-Type: application/json
+
+${JSON.stringify(combinedData)}
+
+--boundary123
+Content-Type: text/xml
+
+${xmlData}
+
+--boundary123--`
     );
   } catch (error) {
     console.error(error);
