@@ -45,12 +45,6 @@ export default async function handler(req, res) {
       fetchWithErrorHandling(apiUrl5, { headers: { 'Content-Type': 'application/json' } })
     ]);
 
-    // Debug log for API responses
-    console.log("data0:", data0);
-    console.log("data1:", data1);
-    console.log("data2:", data2);
-    console.log("data5:", data5);
-
     const x = parseFloat(target2.split(',')[0]);
     const y = parseFloat(target2.split(',')[1]);
 
@@ -66,10 +60,6 @@ export default async function handler(req, res) {
     const data3 = response3;
     const data4 = response4;
     const data6 = response6;
-
-    // Debug log for additional data
-    console.log("data4:", data4);
-    console.log("data6:", data6);
 
     const data4Features = data4.features || [];
     const additionalData = await Promise.all(data4Features.map(async (feature) => {
@@ -104,9 +94,6 @@ export default async function handler(req, res) {
       additionalDataMap.set(item.identificatie, item);
     });
 
-    // Debug log for additionalDataMap
-    console.log("additionalDataMap:", additionalDataMap);
-
     const mergedData = data4Features
       .map(feature => {
         const identificatie = feature.properties?.identificatie;
@@ -114,7 +101,7 @@ export default async function handler(req, res) {
         const pandData = data6.features.find(pand => pand.properties?.identificatie === feature.properties?.pandidentificatie);
 
         if (!additionalInfo || additionalInfo.error || !pandData) {
-          return null; // Skip this feature if there's an error or no additional data or matching PAND
+          return null;
         }
 
         return {
@@ -135,12 +122,16 @@ export default async function handler(req, res) {
       NETB: data2,
       KADAS: data3,
       OBJECT: data5,
-      MERGED: mergedData, // Make sure this is populated
+      MERGED: mergedData,
     };
 
-    // Debug log for combinedData
-    console.log("combinedData:", combinedData);
+    // Now fetch the raw XML from url7 after combinedData is ready
+    const apiUrl7 = `https://pico.geodan.nl/cgi-bin/qgis_mapserv.fcgi?DPI=120&map=/usr/lib/cgi-bin/projects/gebouw_woningtype.qgs&SERVICE=WMS&VERSION=1.3.0&REQUEST=GetFeatureInfo&CRS=EPSG%3A28992&WIDTH=650&HEIGHT=450&I=100&J=100&INFO_FORMAT=application/xml&FEATURE_COUNT=100&QUERY_LAYERS=polygon_woningtype&LAYERS=polygon_woningtype`;
 
+    const rawXmlResponse = await fetch(apiUrl7);
+    const rawXml = await rawXmlResponse.text();
+
+    // Send the final response with both JSON and XML
     res.status(200).send(
       `--boundary123
 Content-Type: application/json
