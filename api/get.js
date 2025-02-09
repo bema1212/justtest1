@@ -43,14 +43,31 @@ export default async function handler(req, res) {
 
     // Handle XML fetch separately
     const apiUrlXML = `https://pico.geodan.nl/cgi-bin/qgis_mapserv.fcgi?DPI=120&map=/usr/lib/cgi-bin/projects/gebouw_woningtype.qgs&SERVICE=WMS&VERSION=1.3.0&REQUEST=GetFeatureInfo&CRS=EPSG%3A28992&WIDTH=937&HEIGHT=842&LAYERS=gebouw&QUERY_LAYERS=gebouw&INFO_FORMAT=text/xml&I=611&J=469&FEATURE_COUNT=10&bbox=${target3}`;
-    
-    let xmlData;
-    try {
-      xmlData = await fetchXMLWithRetry(apiUrlXML);
-    } catch (error) {
-      console.error("XML fetch failed:", error.message);
-      xmlData = "<error>Failed to fetch XML</error>"; // Default fallback
+ 
+
+const fetchXMLWithRetry = async (apiUrlXML, retries = 2) => {
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`HTTP error! Status: ${response.status}`);
     }
+    return await response.text(); // Return raw XML response
+    xmlData = await fetchXMLWithRetry(apiUrlXML);
+    
+  } catch (error) {
+    if (retries > 0) {
+      console.warn(`Retrying XML fetch... (${retries} attempts left)`);
+      return fetchXMLWithRetry(url, retries - 1);
+    } else {
+      console.error(`Failed to fetch XML from ${url}:`, error.message);
+      return "<error>XML fetch failed</error>"; // Return a default XML error message
+    }
+  }
+};
+
+
+
+    
 
     // Processing MERGED Data
     const data4Features = data4.features || [];
