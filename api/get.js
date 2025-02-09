@@ -1,5 +1,6 @@
 export default async function handler(req, res) {
   try {
+    // Set CORS headers
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type');
@@ -29,7 +30,7 @@ export default async function handler(req, res) {
         return await response.json();
       } catch (error) {
         console.error(`Error fetching ${url}:`, error.message);
-        return { error: "error" };
+        return { error: "error" }; // Return an object with just "error" as the result
       }
     };
 
@@ -45,8 +46,8 @@ export default async function handler(req, res) {
       fetchWithErrorHandling(apiUrl5, { headers: { 'Content-Type': 'application/json' } })
     ]);
 
-    const x = parseFloat(target2.split(',')[0]);
-    const y = parseFloat(target2.split(',')[1]);
+    // Extract coordinates from target2 (assumed to be in format "x,y")
+    const [x, y] = target2.split(',').map(coord => parseFloat(coord));
 
     const apiUrl3 = `https://service.pdok.nl/kadaster/kadastralekaart/wms/v5_0?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetFeatureInfo&QUERY_LAYERS=Perceelvlak&layers=Perceelvlak&INFO_FORMAT=application/json&FEATURE_COUNT=1&I=2&J=2&CRS=EPSG:28992&STYLES=&WIDTH=5&HEIGHT=5&BBOX=${target3}`;
     const response3 = await fetchWithErrorHandling(apiUrl3, { headers: { 'Content-Type': 'application/json' } });
@@ -57,17 +58,22 @@ export default async function handler(req, res) {
     const apiUrl6 = `https://service.pdok.nl/lv/bag/wfs/v2_0?service=WFS&version=2.0.0&request=GetFeature&count=200&outputFormat=application/json&srsName=EPSG:4326&typeName=bag:pand&Filter=%3CFilter%3E%20%3CDWithin%3E%3CPropertyName%3EGeometry%3C/PropertyName%3E%3Cgml:Point%3E%20%3Cgml:coordinates%3E${x},${y}%3C/gml:coordinates%3E%20%3C/gml:Point%3E%3CDistance%20units=%27m%27%3E70%3C/Distance%3E%3C/DWithin%3E%3C/Filter%3E`;
     const response6 = await fetchWithErrorHandling(apiUrl6, { headers: { 'Content-Type': 'application/json' } });
 
+    if (!response3 || !response4 || !response6) {
+      return res.status(500).json({ error: "Error fetching data from the bbox or WFS API" });
+    }
+
     const data3 = response3;
     const data4 = response4;
     const data6 = response6;
 
     const data4Features = data4.features || [];
+
     const additionalData = await Promise.all(data4Features.map(async (feature) => {
       const identificatie = feature.properties?.identificatie;
       if (!identificatie) return null;
 
       const apiUrl = `https://yxorp-pi.vercel.app/api/handler?url=https://public.ep-online.nl/api/v4/PandEnergielabel/AdresseerbaarObject/${identificatie}`;
-      
+
       try {
         const response = await fetch(apiUrl, {
           headers: {
@@ -100,16 +106,17 @@ export default async function handler(req, res) {
         const additionalInfo = additionalDataMap.get(identificatie);
         const pandData = data6.features.find(pand => pand.properties?.identificatie === feature.properties?.pandidentificatie);
 
+        // Only include the feature if there is no error in the additional data and matching PAND
         if (!additionalInfo || additionalInfo.error || !pandData) {
-          return null;
+          return null; // Skip this feature if there's an error or no additional data or matching PAND
         }
 
         return {
           ...feature,
-          additionalData: additionalInfo.data,
+          additionalData: additionalInfo.data, // Only include the successful data
           additionalData2: [
             {
-              geometry: pandData.geometry,
+              geometry: pandData.geometry, // Add PAND geometry to additionalData2
             }
           ],
         };
@@ -122,12 +129,11 @@ export default async function handler(req, res) {
       NETB: data2,
       KADAS: data3,
       OBJECT: data5,
-      MERGED: mergedData,
+      MERGED: mergedData, // Only includes successful data
     };
 
-    // Now fetch the raw XML from url7 after combinedData is ready
-    const apiUrl7 = `https://pico.geodan.nl/cgi-bin/qgis_mapserv.fcgi?DPI=120&map=/usr/lib/cgi-bin/projects/gebouw_woningtype.qgs&SERVICE=WMS&VERSION=1.3.0&REQUEST=GetFeatureInfo&CRS=EPSG%3A28992&WIDTH=650&HEIGHT=450&I=100&J=100&INFO_FORMAT=application/xml&FEATURE_COUNT=100&QUERY_LAYERS=polygon_woningtype&LAYERS=polygon_woningtype`;
-
+    // Now, fetch url7 after the MERGED data is complete
+    const apiUrl7 = `https://pico.geodan.nl/cgi-bin/qgis_mapserv.fcgi?DPI=120&map=/usr/lib/cgi-bin/projects/gebouw_woningtype.qgs&SERVICE=WMS&VERSION=1.3.0&REQUEST=GetFeatureInfo&CRS=EPSG%3A28992&WIDTH=937&HEIGHT=842&LAYERS=gebouw&STYLES=&FORMAT=image%2Fjpeg&QUERY_LAYERS=gebouw&INFO_FORMAT=text/xml&I=611&J=469&FEATURE_COUNT=10&bbox=${target3}`;
     const rawXmlResponse = await fetch(apiUrl7);
     const rawXml = await rawXmlResponse.text();
 
