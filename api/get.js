@@ -22,10 +22,10 @@ export default async function handler(req, res) {
 
     // Fetch JSON data in parallel
     const [data0, data1, data2, data5] = await Promise.all([
-      fetchWithErrorHandling(apiUrl0),
+      fetchWithErrorHandling(apiUrl0, { headers: { "Content-Type": "application/json" } },
       fetchWithErrorHandling(apiUrl1, { headers: { Authorization: process.env.AUTH_TOKEN } }),
-      fetchWithErrorHandling(apiUrl2),
-      fetchWithErrorHandling(apiUrl5),
+      fetchWithErrorHandling(apiUrl2), { headers: { "Content-Type": "application/json" } },
+      fetchWithErrorHandling(apiUrl5), { headers: { "Content-Type": "application/json" } },
     ]);
 
     // Extract coordinates from target2 (assumed to be in format "x,y")
