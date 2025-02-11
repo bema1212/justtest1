@@ -136,15 +136,9 @@ export default async function handler(req, res) {
       // niet toevoegen, onnodige data PAND: data6 // Include data from the new request
     };
 
-    res.status(200).json(combinedData);
-
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: "Internal Server Error" });
-  }
-}  // Fetch raw XML outside Promise.all
+   // Fetch raw XML (outside Promise.all)
     const apiUrl7 = `https://pico.geodan.nl/cgi-bin/qgis_mapserv.fcgi?DPI=120&map=/usr/lib/cgi-bin/projects/gebouw_woningtype.qgs&SERVICE=WMS&VERSION=1.3.0&REQUEST=GetFeatureInfo&CRS=EPSG%3A28992&WIDTH=937&HEIGHT=842&LAYERS=gebouw&STYLES=&FORMAT=image%2Fjpeg&QUERY_LAYERS=gebouw&INFO_FORMAT=text/xml&I=611&J=469&FEATURE_COUNT=10&bbox=${target3}`;
-    
+
     let rawXml = "";
     try {
       const response7 = await fetch(apiUrl7, { headers: { 'Content-Type': 'text/xml' } });
@@ -160,19 +154,21 @@ export default async function handler(req, res) {
     }
 
     // Construct response with both JSON and XML in multipart format
-    res.status(200).send(
-      `--boundary123
-Content-Type: application/json
+    const boundary = "boundary123"; // Or generate a more unique boundary
 
-${JSON.stringify(combinedData)}
+    res.setHeader('Content-Type', `multipart/mixed; boundary=${boundary}`);
 
---boundary123
-Content-Type: text/xml
+    res.write(`--${boundary}\r\n`);
+    res.write('Content-Type: application/json\r\n\r\n');
+    res.write(JSON.stringify(combinedData) + '\r\n'); // Important: \r\n after JSON
 
-${rawXml}
+    res.write(`--${boundary}\r\n`);
+    res.write('Content-Type: text/xml\r\n\r\n');
+    res.write(rawXml + '\r\n');  // Important: \r\n after XML
 
---boundary123--`
-    );
+    res.write(`--${boundary}--\r\n`); // End boundary
+
+    res.status(200).end(); // Use res.end() to finalize the response
 
   } catch (error) {
     console.error(error);
