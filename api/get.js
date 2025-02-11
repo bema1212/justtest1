@@ -154,7 +154,7 @@ export default async function handler(req, res) {
           }
         }
       }
-      return "<error>Failed to fetch XML data after multiple retries</error>"; // Return error message after all retries fail
+      return "<error>Failed to fetch XML data after multiple retries</error>"+apiUrl7; // Return error message after all retries fail
     };
 
     const rawXml = await fetchXMLWithRetry(apiUrl7);
