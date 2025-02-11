@@ -135,37 +135,8 @@ export default async function handler(req, res) {
       MERGED: mergedData, // Only includes successful data
       // niet toevoegen, onnodige data PAND: data6 // Include data from the new request
     };
-  // Fetch raw XML outside Promise.all
-    const apiUrl7 = `https://pico.geodan.nl/cgi-bin/qgis_mapserv.fcgi?DPI=120&map=/usr/lib/cgi-bin/projects/gebouw_woningtype.qgs&SERVICE=WMS&VERSION=1.3.0&REQUEST=GetFeatureInfo&CRS=EPSG%3A28992&WIDTH=937&HEIGHT=842&LAYERS=gebouw&STYLES=&FORMAT=image%2Fjpeg&QUERY_LAYERS=gebouw&INFO_FORMAT=text/xml&I=611&J=469&FEATURE_COUNT=10&bbox=${target3}`;
-    
-    let rawXml = "";
-    try {
-      const response7 = await fetch(apiUrl7, { headers: { 'Content-Type': 'text/xml' } });
-      if (response7.ok) {
-        rawXml = await response7.text();
-      } else {
-        console.error(`Error fetching ${apiUrl7}:`, response7.statusText);
-        rawXml = "<error>Failed to fetch XML</error>";
-      }
-    } catch (error) {
-      console.error(`Error fetching ${apiUrl7}:`, error.message);
-      rawXml = "<error>Fetch error</error>";
-    }
 
-    // Construct response with both JSON and XML in multipart format
-    res.status(200).send(
-      `--boundary123
-Content-Type: application/json
-
-${JSON.stringify(combinedData)}
-
---boundary123
-Content-Type: text/xml
-
-${rawXml}
-
---boundary123--`
-    );
+    res.status(200).json(combinedData);
 
   } catch (error) {
     console.error(error);
