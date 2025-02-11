@@ -136,39 +136,46 @@ export default async function handler(req, res) {
       // niet toevoegen, onnodige data PAND: data6 // Include data from the new request
     };
 
-   // Fetch raw XML (outside Promise.all)
+ // Fetch raw XML with retry logic
     const apiUrl7 = `https://pico.geodan.nl/cgi-bin/qgis_mapserv.fcgi?DPI=120&map=/usr/lib/cgi-bin/projects/gebouw_woningtype.qgs&SERVICE=WMS&VERSION=1.3.0&REQUEST=GetFeatureInfo&CRS=EPSG%3A28992&WIDTH=937&HEIGHT=842&LAYERS=gebouw&STYLES=&FORMAT=image%2Fjpeg&QUERY_LAYERS=gebouw&INFO_FORMAT=text/xml&I=611&J=469&FEATURE_COUNT=10&bbox=${target3}`;
 
-    let rawXml = "";
-    try {
-      const response7 = await fetch(apiUrl7, { headers: { 'Content-Type': 'text/xml' } });
-      if (response7.ok) {
-        rawXml = await response7.text();
-      } else {
-        console.error(`Error fetching ${apiUrl7}:`, response7.statusText);
-        rawXml = "<error>Failed to fetch XML</error>";
+    const fetchXMLWithRetry = async (url, retries = 2) => {
+      for (let i = 0; i <= retries; i++) {
+        try {
+          const response = await fetch(url, { headers: { 'Content-Type': 'text/xml' } });
+          if (!response.ok) {
+            throw new Error(`HTTP error! Status: ${response.status}`);
+          }
+          return await response.text();
+        } catch (error) {
+          console.error(`Error fetching ${url} (Attempt ${i + 1}):`, error.message);
+          if (i < retries) {
+            await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second before retrying
+          }
+        }
       }
-    } catch (error) {
-      console.error(`Error fetching ${apiUrl7}:`, error.message);
-      rawXml = "<error>Fetch error</error>";
-    }
+      return "<error>Failed to fetch XML data after multiple retries</error>"; // Return error message after all retries fail
+    };
+
+    const rawXml = await fetchXMLWithRetry(apiUrl7);
+
 
     // Construct response with both JSON and XML in multipart format
-    const boundary = "boundary123"; // Or generate a more unique boundary
+    const boundary = `boundary${Date.now()}`; // Generate a more unique boundary
 
     res.setHeader('Content-Type', `multipart/mixed; boundary=${boundary}`);
 
     res.write(`--${boundary}\r\n`);
     res.write('Content-Type: application/json\r\n\r\n');
-    res.write(JSON.stringify(combinedData) + '\r\n'); // Important: \r\n after JSON
+    res.write(JSON.stringify(combinedData) + '\r\n');
 
     res.write(`--${boundary}\r\n`);
     res.write('Content-Type: text/xml\r\n\r\n');
-    res.write(rawXml + '\r\n');  // Important: \r\n after XML
+    res.write(rawXml + '\r\n');
 
-    res.write(`--${boundary}--\r\n`); // End boundary
+    res.write(`--${boundary}--\r\n`);
 
-    res.status(200).end(); // Use res.end() to finalize the response
+    res.status(200).end();
 
   } catch (error) {
     console.error(error);
