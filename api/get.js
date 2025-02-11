@@ -26,16 +26,31 @@ export default async function handler(req, res) {
       try {
         const response = await fetch(url, options);
         if (!response.ok) {
-          throw new Error(`HTTP error! Status: ${response.status} for ${url}`); // Include URL in error
+          const errorText = await response.text(); // Get error details if available
+          throw new Error(`HTTP error! Status: ${response.status} - ${errorText} for ${url}`);
         }
         return await response.json();
       } catch (error) {
         console.error(`Error fetching ${url}:`, error.message);
-        return { error: error.message }; // Return error object
+        return { error: error.message };
       }
     };
 
-    // ... (Existing code for fetching data0, data1, data2, data3, data4, data5, data6)
+    const [data0, data1, data2, data5] = await Promise.all([
+      fetchWithErrorHandling(apiUrl0),
+      fetchWithErrorHandling(apiUrl1, { headers: { Authorization: process.env.AUTH_TOKEN } }),
+      fetchWithErrorHandling(apiUrl2),
+      fetchWithErrorHandling(apiUrl5)
+    ]);
+
+    console.log("data0:", data0);
+
+    if (data0 && data0.error) {
+      console.error("Error fetching data0:", data0.error);
+      data0 = { error: data0.error }; // Or: data0 = {}; or: throw new Error(data0.error);
+    }
+
+    // ... (Existing code for fetching data3, data4, data6)
 
     const data4Features = data4?.features || [];
 
@@ -55,7 +70,8 @@ export default async function handler(req, res) {
             const data = await response.json();
             return { identificatie, data };
           } else {
-            console.error(`Error fetching additional data for ${identificatie}: ${response.status} ${response.statusText}`);
+            const errorText = await response.text(); // Capture error details
+            console.error(`Error fetching additional data for ${identificatie}: ${response.status} ${response.statusText} - ${errorText}`);
             return { identificatie, error: response.statusText };
           }
         } catch (error) {
@@ -89,7 +105,7 @@ export default async function handler(req, res) {
 
 
     const combinedData = {
-      LOOKUP: data0,
+      LOOKUP: data0 && !data0.error ? data0 : { error: "Could not retrieve LOOKUP data" },
       EPON: data1,
       NETB: data2,
       KADAS: data3,
