@@ -161,22 +161,22 @@ export default async function handler(req, res) {
     const rawXml = await fetchXMLWithRetry(apiUrl7);
 
 
-  const boundary = `boundary}`; // Generate a unique boundary
+  const boundary = `boundary`; // Generate a unique boundary
 
     res.setHeader('Content-Type', `multipart/mixed; boundary="${boundary}"`); // Correct Content-Type
 
     // Part 1: JSON
-    res.write(`--${boundary}\r\n`);
+    res.write(`${boundary}\r\n`);
     res.write('Content-Type: application/json\r\n\r\n'); // Important: \r\n\r\n
     res.write(JSON.stringify(combinedData) + '\r\n');    // Important: \r\n
 
     // Part 2: XML
-    res.write(`--${boundary}\r\n`);
+    res.write(`${boundary}\r\n`);
     res.write('Content-Type: text/xml\r\n\r\n');       // Important: \r\n\r\n
     res.write(rawXml + '\r\n');                       // Important: \r\n
 
     // End boundary
-    res.write(`--${boundary}--\r\n`);
+    res.write(`${boundary}--\r\n`);
 
     res.status(200).end(); // Important: res.end() to finish the response
 
