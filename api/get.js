@@ -161,7 +161,7 @@ export default async function handler(req, res) {
     const rawXml = await fetchXMLWithRetry(apiUrl7);
 
 
-  const boundary = `boundary${Date.now()}`; // Generate a unique boundary
+  const boundary = `boundary}`; // Generate a unique boundary
 
     res.setHeader('Content-Type', `multipart/mixed; boundary="${boundary}"`); // Correct Content-Type
 
