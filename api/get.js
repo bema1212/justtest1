@@ -142,7 +142,7 @@ export default async function handler(req, res) {
     const fetchXMLWithRetry = async (url, retries = 2) => {
       for (let i = 0; i <= retries; i++) {
         try {
-          const response = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36'
+          const response = await fetch(url, { 'Content-Type': 'text/xml', headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36'
          } });
           if (!response.ok) {
             throw new Error(`HTTP error! Status: ${response.status}`);
