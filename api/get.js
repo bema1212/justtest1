@@ -167,12 +167,10 @@ export default async function handler(req, res) {
 
     // Part 1: JSON
     res.write(`${boundary}\r\n`);
-    res.write('Content-Type: application/json\r\n\r\n'); // Important: \r\n\r\n
     res.write(JSON.stringify(combinedData) + '\r\n');    // Important: \r\n
 
     // Part 2: XML
     res.write(`${boundary}\r\n`);
-    res.write('Content-Type: text/xml\r\n\r\n');       // Important: \r\n\r\n
     res.write(rawXml + '\r\n');                       // Important: \r\n
 
     // End boundary
